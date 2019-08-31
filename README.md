@@ -1,6 +1,6 @@
 # classicmac-pcsetup-kit
 
-This script creates image files suitable for the [DOS/Windows/PC compatibility cards](http://www.oliver-schubert.com/DOScard/DOScard.html) in classic Macs. It creates image files that are readable and bootable by [PC Setup](http://www.oliver-schubert.com/DOScard/DOScard.html#pcsetup2x) (in case your floppy drive is dead like mine was).
+PC Setup Kit creates image files suitable for the [DOS/Windows/PC compatibility cards](http://www.oliver-schubert.com/DOScard/DOScard.html) in classic Macs. It creates image files that are readable and bootable by [PC Setup](http://www.oliver-schubert.com/DOScard/DOScard.html#pcsetup2x) - in case your floppy drive is dead like mine was. It also allows using the image files in a compatible manner in VirtualBox.
 
 Developed and tested on Ubuntu 18.04 and PowerMac 6100, 264 MB RAM, OS 9.1, NuBus PC compatibility card, Cyrix 486 DX2 66, 32 MB RAM, PC Setup 2.1.7f only
 
