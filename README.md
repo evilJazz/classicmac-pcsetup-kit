@@ -74,6 +74,18 @@ In order to make our created image files selectable in the PC Setup application,
 
 This can be achieved using the app [FileType](http://www.frederikseiffert.de/filetype/). 
 
+![alt text](assets/FileType.png "FileType.app")
+
 Add the image as file in FileType or drag the image file onto the FileType icon. Toggle both `change` flags and set `Creator:` to `D:\>` and `Type:` `APPL`. Click `Change` and the file is fixed.
 
-![alt text](assets/FileType.png "FileType.app")
+You can also save these settings by adding a new file type via the `Edit list...` button.
+
+### License
+
+Please check LICENSE or preamble in file for licensing details.
+
+----
+
+Happy Retro Computing!
+
+2019 Andre Beckedorf (evilJazz `AT` katastrophos `DOT` net)
