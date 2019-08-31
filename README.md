@@ -27,7 +27,7 @@ Most modern software have already removed support for the ancient CHS disk geome
 
 The pcsetup-kit script will automatically create a .vmdk adapter file that can be used as drive image in VirtualBox. Simply create a new virtual machine in VirtualBox and make sure to select `DOS` or `Windows 95/98` as machine type and configure it similar to your PC compatibility card.
 
-Once the image is finished, copy it over to your Mac or mount the image via AFP. Make sure to change the filetype to Creator: "D:>" and Type: "APPL", so the image file will be selectable in the PC Setup app. For details see [Using images on the Mac](#using-images-on-the-mac) below.
+Once the image is finished, copy it over to your Mac or mount the image via AFP. Make sure to change the filetype to Creator: "D:\>" and Type: "APPL", so the image file will be selectable in the PC Setup app. For details see [Using images on the Mac](#using-images-on-the-mac) below.
 
 ## Usage
 
@@ -71,6 +71,9 @@ This will create the adapter file `My Windows 95 setup.img.vmdk`.
 ### Using images on the Mac
 
 In order to make our created image files selectable in the PC Setup application, we need to change the resource fork information of the image to the proper Mac file type.
-This can be achieved using the app [FileType](http://www.frederikseiffert.de/filetype/). Creator: "D:>" and Type: "APPL"
+
+This can be achieved using the app [FileType](http://www.frederikseiffert.de/filetype/). 
+
+Add the image as file in FileType or drag the image file onto the FileType icon. Toggle both `change` flags and set `Creator:` to `D:\>` and `Type:` `APPL`. Click `Change` and the file is fixed.
 
 ![alt text](assets/FileType.png "FileType.app")
