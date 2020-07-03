@@ -56,7 +56,7 @@ createImageAction()
       echo "Options:"
       echo "     --no-partiioning   Only create image file. Do not create partitions in image."
       echo "     --no-format        Do not format image file."
-      echo "     --preseed          Copy files in "files" sub-directory to image."
+      echo "     --preseed=dir      Copy files in directory 'dir' to image."
       echo "     --no-vmdk-file     Do not create an VMDK adapter file for Virtual Box or VMware."
    }
 
@@ -80,8 +80,20 @@ createImageAction()
          --no-format)
             IMAGE_FORMAT=0
             ;;
-         --preseed)
+         --preseed*)
             IMAGE_PRESEED=1
+            IMAGE_PRESEED_SRC="${i#*=}"
+
+            if [ "$IMAGE_PRESEED_SRC" == "" ]; then
+               echo "Please specify a source directory with --preseed=<some directory>"
+               exit 1
+            fi
+
+            if [ ! -d "$IMAGE_PRESEED_SRC" ]; then
+               echo "The preseed directory $IMAGE_PRESEED_SRC does not exist."
+               exit 1
+            fi
+
             ;;
          --no-vmdk-file)
             IMAGE_VMDK_ADAPTER=0
@@ -90,7 +102,7 @@ createImageAction()
             ;;
       esac
    done
-
+   #exit 0
    dd if=/dev/zero of="$OUTFILE" bs=1M count=$OUTFILE_MBSIZE
 
    if [ $IMAGE_INITIALIZATION -eq 1 ]; then
@@ -119,7 +131,7 @@ EOF
 
          if [ $IMAGE_PRESEED -eq 1 ]; then
             sudo mount "$LOOPPART" /mnt/temp
-            sudo cp -r files/* /mnt/temp/
+            sudo rsync -rptuv --progress --stats "$IMAGE_PRESEED_SRC/"* /mnt/temp/
             echo Press enter to unmount /mnt/temp...
             read
             sudo umount /mnt/temp
