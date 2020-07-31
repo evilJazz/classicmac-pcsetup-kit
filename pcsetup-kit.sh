@@ -24,6 +24,18 @@ SCRIPT_ROOT=$(dirname "$SCRIPT_FILENAME")
 
 set -e -o pipefail
 
+echoerr()
+{
+   echo "$@" 1>&2
+}
+
+sudomagic()
+{
+   echoerr "sudo $@"
+   sudo "$@"
+   return $?
+}
+
 usage()
 {
    echo "Usage: $0 ACTION ..."
@@ -31,6 +43,8 @@ usage()
    echo "ACTIONs:"
    echo "         create  -  Create a new image file"
    echo "        adapter  -  Create a VMDK adapter for an existing image file"
+   echo "          mount  -  Mount image (requires root / sudo privileges)"
+   echo "         umount  -  Un-mount image (requires root / sudo privileges)"
    echo
 }
 
@@ -63,8 +77,8 @@ createImageAction()
    [ $# -lt 2 ] && usage && exit 1
    
      
-   OUTFILE=$1
-   OUTFILE_MBSIZE=$2
+   IMAGEFILE=$1
+   IMAGEFILE_MBSIZE=$2
 
    IMAGE_INITIALIZATION=1
    IMAGE_FORMAT=1
@@ -85,12 +99,12 @@ createImageAction()
             IMAGE_PRESEED_SRC="${i#*=}"
 
             if [ "$IMAGE_PRESEED_SRC" == "" ]; then
-               echo "Please specify a source directory with --preseed=<some directory>"
+               echoerr "Please specify a source directory with --preseed=<some directory>"
                exit 1
             fi
 
             if [ ! -d "$IMAGE_PRESEED_SRC" ]; then
-               echo "The preseed directory $IMAGE_PRESEED_SRC does not exist."
+               echoerr "The preseed directory $IMAGE_PRESEED_SRC does not exist."
                exit 1
             fi
 
@@ -103,10 +117,10 @@ createImageAction()
       esac
    done
    #exit 0
-   dd if=/dev/zero of="$OUTFILE" bs=1M count=$OUTFILE_MBSIZE
+   dd if=/dev/zero of="$IMAGEFILE" bs=1M count=$IMAGEFILE_MBSIZE
 
    if [ $IMAGE_INITIALIZATION -eq 1 ]; then
-      sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk -c=dos -H 64 -S 32 "$OUTFILE"
+      sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk -c=dos -H 64 -S 32 "$IMAGEFILE"
 o # clear the in memory partition table
 n # new partition
 p # primary partition
@@ -121,30 +135,31 @@ w # write the partition table
 q # and we're done
 EOF
 
-      LOOPDEV=$(sudo losetup -f -P --show "$OUTFILE")
+      LOOPDEV=$(sudomagic losetup -f -P --show "$IMAGEFILE")
       LOOPPART="${LOOPDEV}p1"
 
-      set -x
-
       if [ $IMAGE_FORMAT -eq 1 ]; then
-         sudo mkdosfs -F16 -v "$LOOPPART"
+         sudomagic mkdosfs -F16 -v "$LOOPPART"
 
          if [ $IMAGE_PRESEED -eq 1 ]; then
-            sudo mount "$LOOPPART" /mnt/temp
-            sudo rsync -rptuv --progress --stats "$IMAGE_PRESEED_SRC/"* /mnt/temp/
-            echo Press enter to unmount /mnt/temp...
+            MOUNTPOINT=/tmp/$$
+            mkdir -p "$MOUNTPOINT"
+
+            sudomagic mount "$LOOPPART" "$MOUNTPOINT"
+            sudomagic rsync -rptuv --progress --stats "$IMAGE_PRESEED_SRC/"* "$MOUNTPOINT" || true
+            echo "Press enter to un-mount $MOUNTPOINT..."
             read
-            sudo umount /mnt/temp
+            sudomagic umount "$MOUNTPOINT"
+
+            rmdir "$MOUNTPOINT"
          fi
       fi
 
-      sudo losetup -d "$LOOPDEV"
+      sudomagic losetup -d "$LOOPDEV"
    fi
 
-   set +x
-
    if [ $IMAGE_VMDK_ADAPTER == 1 ]; then
-      createVMDKAdapterAction "$OUTFILE"
+      createVMDKAdapterAction "$IMAGEFILE"
    fi
 }
 
@@ -194,6 +209,68 @@ ddb.geometry.biosSectors="32"
 VMDK
 
    echo "$OUTFILE successfully created."
+
+mountImageAction()
+{
+   usage()
+   {
+      echo "Usage: $0 mount (PCSetup image filename) (mountpoint)"
+      echo
+   }
+
+   [ $# -lt 1 ] && usage && exit 1
+   
+   IMAGEFILE=$(realpath "$1")
+   MOUNTPOINT=$(realpath "${2:-/mnt/temp}")
+
+   # Search for existing loop device
+   LOOPDEV=$(sudo losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
+
+   if [ -n "$LOOPDEV" ]; then
+      echoerr "$IMAGEFILE is already attached at $LOOPDEV."
+      exit 1
+   fi
+
+   LOOPDEV=$(sudomagic losetup -f -P --show "$IMAGEFILE")
+   LOOPPART="${LOOPDEV}p1"
+
+   sudomagic mount "$LOOPPART" "$MOUNTPOINT"
+
+   echo "Mounted $IMAGEFILE at $MOUNTPOINT. You can use"
+   echo "$0 umount '$1'"
+   echo "to un-mount the image."
+   echo
+}
+
+umountImageAction()
+{
+   usage()
+   {
+      echo "Usage: $0 umount (PCSetup image filename)"
+      echo
+   }
+
+   [ $# -lt 1 ] && usage && exit 1
+   
+   IMAGEFILE=$(realpath "$1")
+   
+   LOOPDEV=$(sudo losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
+
+   if [ ! -e "$LOOPDEV" ]; then
+      echoerr "Could not find loop device for $IMAGEFILE."
+      exit 1
+   fi
+
+   LOOPPART="${LOOPDEV}"
+   MOUNTPOINT=$(sudo mount | grep "$LOOPPART" | tail -n1 | cut -f3 -d' ' || true)
+
+   if [ -d "$MOUNTPOINT" ]; then
+      sudomagic umount "$MOUNTPOINT"
+   fi
+
+   sudomagic losetup -d "$LOOPDEV"
+
+   echo "Successfully un-mounted $IMAGEFILE."
 }
 
 ACTION=$1
@@ -205,6 +282,12 @@ case "$ACTION" in
    ;;
 "adapter")
    createVMDKAdapterAction "$@"
+   ;;
+"mount")
+   mountImageAction "$@"
+   ;;
+"umount")
+   umountImageAction "$@"
    ;;
 *)
    usage
