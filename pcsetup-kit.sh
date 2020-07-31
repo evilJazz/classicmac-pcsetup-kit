@@ -302,9 +302,34 @@ case "$ACTION" in
    umountImageAction "$@"
    ;;
 "dosbox")
-   mountImageAction "$@"
-   dosbox -userconf -conf "$SCRIPT_ROOT/pcsetup-kit-dosbox.conf" -c "mount c \"$MOUNTPOINT\"" -c "C:" -c "autoexec.bat" "C:" || true
-   umountImageAction "$@"
+   DOSBOX_PARAMS=(
+      -userconf
+      -conf "$SCRIPT_ROOT/pcsetup-kit-dosbox.conf"
+   )
+
+   DRIVE_ASCII=67 # Start at drive C
+   for IMAGEFILE in "$@"; do
+      echo "Mounting $IMAGEFILE..."
+      DRIVE=$(printf "\x$(printf %x $DRIVE_ASCII)")
+      DRIVE_ASCII=$((DRIVE_ASCII + 1))
+
+      mountImageAction "$IMAGEFILE" "$TMPDIR-$DRIVE"
+      echo
+
+      DOSBOX_PARAMS+=(-c "mount $DRIVE \"$MOUNTPOINT\"")
+   done
+
+   DOSBOX_PARAMS+=(
+      -c "C:"
+      -c "C:\\autoexec.bat"
+   )
+
+   dosbox "${DOSBOX_PARAMS[@]}" || true
+
+   for IMAGEFILE in "$@"; do
+      echo "Un-mounting $IMAGEFILE..."
+      umountImageAction "$IMAGEFILE"
+   done
    ;;
 *)
    usage
