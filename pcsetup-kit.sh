@@ -303,7 +303,7 @@ case "$ACTION" in
    ;;
 "dosbox")
    mountImageAction "$@"
-   dosbox "$MOUNTPOINT"
+   dosbox -userconf -conf "$SCRIPT_ROOT/pcsetup-kit-dosbox.conf" -c "mount c \"$MOUNTPOINT\"" -c "C:" -c "autoexec.bat" "C:" || true
    umountImageAction "$@"
    ;;
 *)
