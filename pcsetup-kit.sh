@@ -209,6 +209,7 @@ ddb.geometry.biosSectors="32"
 VMDK
 
    echo "$OUTFILE successfully created."
+}
 
 mountImageAction()
 {
@@ -234,7 +235,8 @@ mountImageAction()
    LOOPDEV=$(sudomagic losetup -f -P --show "$IMAGEFILE")
    LOOPPART="${LOOPDEV}p1"
 
-   sudomagic mount "$LOOPPART" "$MOUNTPOINT"
+   mkdir -p "$MOUNTPOINT"
+   sudomagic mount -o uid=$(id -u),gid=$(id -g) "$LOOPPART" "$MOUNTPOINT"
 
    echo "Mounted $IMAGEFILE at $MOUNTPOINT. You can use"
    echo "$0 umount '$1'"
