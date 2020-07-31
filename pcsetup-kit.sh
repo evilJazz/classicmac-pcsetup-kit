@@ -301,6 +301,11 @@ case "$ACTION" in
 "umount")
    umountImageAction "$@"
    ;;
+"dosbox")
+   mountImageAction "$@"
+   dosbox "$MOUNTPOINT"
+   umountImageAction "$@"
+   ;;
 *)
    usage
    ;;
