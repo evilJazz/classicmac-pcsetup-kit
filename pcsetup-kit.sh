@@ -24,6 +24,9 @@ SCRIPT_ROOT=$(dirname "$SCRIPT_FILENAME")
 
 set -e -o pipefail
 
+TMPPREFIX=/tmp/pcsetup-kit
+TMPDIR=$TMPPREFIX-$$
+
 echoerr()
 {
    echo "$@" 1>&2
@@ -142,7 +145,7 @@ EOF
          sudomagic mkdosfs -F16 -v "$LOOPPART"
 
          if [ $IMAGE_PRESEED -eq 1 ]; then
-            MOUNTPOINT=/tmp/$$
+            MOUNTPOINT=$TMPDIR
             mkdir -p "$MOUNTPOINT"
 
             sudomagic mount "$LOOPPART" "$MOUNTPOINT"
@@ -215,21 +218,22 @@ mountImageAction()
 {
    usage()
    {
-      echo "Usage: $0 mount (PCSetup image filename) (mountpoint)"
+      echo "Usage: $0 mount (PCSetup image filename) [mountpoint]"
       echo
    }
 
    [ $# -lt 1 ] && usage && exit 1
    
    IMAGEFILE=$(realpath "$1")
-   MOUNTPOINT=$(realpath "${2:-/mnt/temp}")
+   MOUNTPOINT=$(realpath "${2:-$TMPDIR}")
 
    # Search for existing loop device
-   LOOPDEV=$(sudo losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
+   LOOPDEV=$(losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
 
    if [ -n "$LOOPDEV" ]; then
-      echoerr "$IMAGEFILE is already attached at $LOOPDEV."
-      exit 1
+      echoerr "$IMAGEFILE is already attached via $LOOPDEV at"
+      echoerr "$(mount | grep $LOOPDEV | tail -n1 | cut -f3 -d' ' || true)"
+      exit 0
    fi
 
    LOOPDEV=$(sudomagic losetup -f -P --show "$IMAGEFILE")
@@ -238,10 +242,9 @@ mountImageAction()
    mkdir -p "$MOUNTPOINT"
    sudomagic mount -o uid=$(id -u),gid=$(id -g) "$LOOPPART" "$MOUNTPOINT"
 
-   echo "Mounted $IMAGEFILE at $MOUNTPOINT. You can use"
-   echo "$0 umount '$1'"
-   echo "to un-mount the image."
    echo
+   echo "Image $IMAGEFILE successfully mounted via $LOOPDEV at"
+   echo "$MOUNTPOINT"
 }
 
 umountImageAction()
@@ -256,7 +259,7 @@ umountImageAction()
    
    IMAGEFILE=$(realpath "$1")
    
-   LOOPDEV=$(sudo losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
+   LOOPDEV=$(losetup | grep "$IMAGEFILE" | tail -n1 | cut -f1 -d' ' || true)
 
    if [ ! -e "$LOOPDEV" ]; then
       echoerr "Could not find loop device for $IMAGEFILE."
@@ -264,7 +267,7 @@ umountImageAction()
    fi
 
    LOOPPART="${LOOPDEV}"
-   MOUNTPOINT=$(sudo mount | grep "$LOOPPART" | tail -n1 | cut -f3 -d' ' || true)
+   MOUNTPOINT=$(mount | grep "$LOOPPART" | tail -n1 | cut -f3 -d' ' || true)
 
    if [ -d "$MOUNTPOINT" ]; then
       sudomagic umount "$MOUNTPOINT"
@@ -272,7 +275,14 @@ umountImageAction()
 
    sudomagic losetup -d "$LOOPDEV"
 
+   if [[ "$MOUNTPOINT" =~ "$TMPPREFIX" ]]; then
+      echo "Removing temporary directory for mountpoint $MOUNTPOINT..."
+      rmdir "$MOUNTPOINT"
+   fi
+
+   echo
    echo "Successfully un-mounted $IMAGEFILE."
+   echo
 }
 
 ACTION=$1
